@@ -1,13 +1,13 @@
 # Comparing Lock-Based vs Lock-Free Data Structures
 
-## 🔍 Project Overview
+##  Project Overview
 This project studies the performance and scalability of **lock-based** and **lock-free** data structures in concurrent environments.  
 The main goal is to determine **which approach is faster and more scalable** under different workloads and access patterns.
 
-## 🎯 Research Question
+##  Research Question
 Are lock-free data structures faster and more scalable than lock-based structures?
 
-## 🧠 Background
+##  Background
 Concurrent programs often need to safely share data among multiple threads.  
 Two main strategies exist:
 - **Lock-based structures:** use mutexes or critical sections to protect shared data.
@@ -17,7 +17,7 @@ Understanding their trade-offs is key to designing high-performance concurrent s
 
 ---
 
-## 🧩 Step-by-Step Plan
+##  Step-by-Step Plan
 
 ### **Step 1 – Research (Weeks 1–2)**
 - Learn about locks, mutexes, and lock-free algorithms.
@@ -50,12 +50,12 @@ Understanding their trade-offs is key to designing high-performance concurrent s
 
 ---
 
-## ⚙️ Technologies and Tools
-- **Language:** C++ or Java (recommended)
-- **Concurrency library:** `std::thread`, `std::atomic`, `std::mutex`
+##  Technologies and Tools
+- **Language:** python
+- **Concurrency library:** 
 - **Benchmarking:** custom timer or Google Benchmark
 - **Visualization:** Python (Matplotlib) or Excel for plotting graphs
 
 ---
 
-## 📁 Suggested Folder Structure
+##  Suggested Folder Structure
