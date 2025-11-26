@@ -1,7 +1,6 @@
 import os
 import time
-import threading
-from threading import Thread
+from threading import Thread, current_thread, Condition, Lock
 from multiprocessing import Process, Queue, freeze_support, cpu_count
 
 def IsWinOS():
@@ -17,16 +16,16 @@ class MultiThread:
         self.thread_2 = None
 
     def firstTry(self):
-        print(f"[{threading.current_thread().name}] First Try Thread Running.")
+        print(f"[{current_thread().name}] First Try Thread Running.")
         return None
 
     def secondTry(self):
-        print(f"[{threading.current_thread().name}] Second Try Thread Running.")
+        print(f"[{current_thread().name}] Second Try Thread Running.")
         return None
 
     def createThreads(self):
-        self.thread_1 = threading.Thread(target=self.firstTry, name="Thread First Try")
-        self.thread_2 = threading.Thread(target=self.secondTry, name="Thread Second Try")
+        self.thread_1 = Thread(target=self.firstTry, name="Thread First Try")
+        self.thread_2 = Thread(target=self.secondTry, name="Thread Second Try")
 
         self.thread_1.start()
         self.thread_2.start()
@@ -80,6 +79,60 @@ class MultiProcess:
             p.join()
 
         print("All Processes Have Been Finished.")
+
+class QueueBased:
+    def __init__(self, max_size=None):
+        self.queue = []
+        self.max_size = max_size
+        self.lock = Lock()
+        self.not_empty = Condition(self.lock)
+        self.not_full = Condition(self.lock)
+    
+    def put(self, item, block=True):
+        """Adiciona um item à fila"""
+        with self.lock:
+            if self.max_size is not None:
+                while len(self.queue) >= self.max_size:
+                    if not block:
+                        raise Queue.Full()
+                    if not self.not_full.wait(None):
+                        raise Queue.Full()
+            
+            self.queue.append(item)
+            self.not_empty.notify()
+            return True
+    
+    def get(self, block=True):
+        """Remove e retorna um item da fila"""
+        with self.lock:
+            while len(self.queue) == 0:
+                if not block:
+                    raise Queue.Empty()
+                if not self.not_empty.wait(None):
+                    raise Queue.Empty()
+            
+            item = self.queue.pop(0)
+            if self.max_size is not None:
+                self.not_full.notify()
+            return item
+    
+    def qsize(self):
+        """Retorna o tamanho atual da fila"""
+        with self.lock:
+            return len(self.queue)
+    
+    def empty(self):
+        """Verifica se a fila está vazia"""
+        with self.lock:
+            return len(self.queue) == 0
+    
+    def full(self):
+        """Verifica se a fila está cheia"""
+        if self.max_size is None:
+            return False
+        with self.lock:
+            return len(self.queue) >= self.max_size
+
 
 if __name__ == "__main__":
     IsWinOS()
