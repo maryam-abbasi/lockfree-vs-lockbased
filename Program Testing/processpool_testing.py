@@ -7,42 +7,43 @@ import os
 from utils import IsWinOS
 
 class ProcessPoolExample:
-    def __init__(self, max_workers=None):
-        self.max_workers = max_workers or multiprocessing.cpu_count()
-        self.executor = ProcessPoolExecutor(max_workers=self.max_workers)
+    def __init__(self):
+        self.max_workers = multiprocessing.cpu_count()
 
     def cpu_intensive_task(self, number):
-        """Tarefa intensiva em CPU (ideal para multiprocessing)"""
+        """CPU-intensive task (ideal for multiprocessing)"""
         print(f"[PID {os.getpid()}] Processing number: {number}")
         result = sum(i * i for i in range(number))
         return f"PID {os.getpid()}: sum(i^2) for i<{number} = {result}"
 
     def run_cpu_intensive_tasks(self, numbers):
-        """Executa tarefas CPU-intensive"""
+        """Executes CPU-intensive tasks"""
         print(f"Running {len(numbers)} CPU-intensive tasks with {self.max_workers} workers...")
         
-        futures = {self.executor.submit(self.cpu_intensive_task, num): num for num in numbers}
-        results = []
-        
-        for future in as_completed(futures):
-            num = futures[future]
-            try:
-                result = future.result()
-                results.append(result)
-                print(f"Completed: {result}")
-            except Exception as e:
-                print(f"Task for {num} failed: {e}")
+        # Moving executor creation outside of the class to avoid pickling issues
+        with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {executor.submit(self.cpu_intensive_task, num): num for num in numbers}
+            results = []
+            
+            for future in as_completed(futures):
+                num = futures[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                    print(f"Completed: {result}")
+                except Exception as e:
+                    print(f"Task for {num} failed: {e}")
         
         return results
 
     def mixed_task(self, task_id):
-        """Tarefa mista (CPU + I/O)"""
+        """Mixed task (CPU + I/O)"""
         print(f"[PID {os.getpid()}] Mixed task {task_id} started")
         
-        ## Simulação de Ação CPU-Bound
+        # Simulate a CPU-bound task
         cpu_result = sum(i * i for i in range(100000))
         
-        ## Simulação de Parte Input/Output
+        # Simulate an I/O-bound task
         time.sleep(random.uniform(0.1, 0.3))
         
         result = f"Task {task_id} completed (CPU: {cpu_result})"
@@ -50,9 +51,10 @@ class ProcessPoolExample:
         return result
 
     def run_mixed_tasks(self, num_tasks=8):
-        """Executa tarefas mistas"""
+        """Executes mixed tasks"""
         print(f"Running {num_tasks} mixed tasks...")
         
+        # Moving executor creation outside of the class to avoid pickling issues
         with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
             futures = [executor.submit(self.mixed_task, i+1) for i in range(num_tasks)]
             
@@ -63,7 +65,7 @@ class ProcessPoolExample:
         return results
 
     def parallel_search(self, data_chunk, target):
-        """Busca paralela em chunks de dados"""
+        """Parallel search in data chunks"""
         print(f"[PID {os.getpid()}] Searching in chunk of size {len(data_chunk)}")
         time.sleep(0.1)
         if target in data_chunk:
@@ -71,11 +73,12 @@ class ProcessPoolExample:
         return f"Target {target} not found in chunk"
 
     def run_parallel_search(self, data, target, chunk_size=3):
-        """Executa busca paralela"""
+        """Executes parallel search"""
         
         chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
         print(f"Searching for '{target}' in {len(chunks)} chunks")
         
+        # Moving executor creation outside of the class to avoid pickling issues
         with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
             futures = [executor.submit(self.parallel_search, chunk, target) for chunk in chunks]
             
@@ -86,16 +89,15 @@ class ProcessPoolExample:
         return results
 
     def shutdown(self):
-        """Encerra o executor"""
-        self.executor.shutdown(wait=True)
+        """Shuts down the executor"""
         print("ProcessPoolExecutor shutdown")
 
 if __name__ == "__main__":
-    """ Verificar se o Sistema Operativo é Windows """
+    """Check if the Operating System is Windows"""
     IsWinOS()
 
-    ppe = ProcessPoolExample(max_workers=4)
-    
+    ppe = ProcessPoolExample()
+
     print("=== CPU-Intensive Tasks ===")
     numbers = [1000000, 1500000, 2000000, 1200000, 1800000]
     results = ppe.run_cpu_intensive_tasks(numbers)
@@ -108,5 +110,5 @@ if __name__ == "__main__":
     search_results = ppe.run_parallel_search(data, "cherry", chunk_size=2)
     for result in search_results:
         print(result)
-    
+
     ppe.shutdown()

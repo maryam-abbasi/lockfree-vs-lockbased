@@ -17,7 +17,7 @@ class ThreadingQueue:
         self.running = False
 
     def producer(self, producer_id, items_to_produce):
-        """Thread produtora que adiciona itens à queue"""
+        """Producer thread that adds items to the queue"""
         for i in range(items_to_produce):
             item = f"Item-{producer_id}-{i}"
             self.queue.put(item)
@@ -27,7 +27,7 @@ class ThreadingQueue:
         print(f"[{current_thread().name}] Producer {producer_id} finished")
 
     def consumer(self, consumer_id):
-        """Thread consumidora que remove itens da queue"""
+        """Consumer thread that removes items from the queue"""
         while self.running or not self.queue.empty():
             try:
                 item = self.queue.get(timeout=1)
@@ -40,7 +40,7 @@ class ThreadingQueue:
         print(f"[{current_thread().name}] Consumer {consumer_id} finished")
 
     def start_producer_consumer(self, num_producers=2, num_consumers=3, items_per_producer=5):
-        """Inicia o sistema produtor-consumidor"""
+        """Starts the producer-consumer system"""
         self.running = True
         
         for i in range(num_producers):
@@ -72,7 +72,7 @@ class ThreadingQueue:
         print("All producer-consumer threads finished")
 
     def worker_with_results(self, input_queue, output_queue, worker_id):
-        """Worker que processa itens e retorna resultados"""
+        """Worker that processes items and returns results"""
         while True:
             try:
                 item = input_queue.get(timeout=1)
@@ -92,7 +92,7 @@ class ThreadingQueue:
         print(f"[{current_thread().name}] Worker {worker_id} finished")
 
     def start_workflow_system(self, num_workers=3, items_to_process=10):
-        """Sistema com workflow de processamento"""
+        """Workflow processing system"""
         input_queue = queue.Queue()
         output_queue = queue.Queue()
         workers = []
@@ -129,7 +129,7 @@ class MultiprocessingQueue:
         self.max_processes = cpu_count()
 
     def producer(self, producer_id, items_to_produce, queue):
-        """Processo produtor"""
+        """Producer process"""
         for i in range(items_to_produce):
             item = f"MP-Item-{producer_id}-{i}"
             queue.put(item)
@@ -139,7 +139,7 @@ class MultiprocessingQueue:
         print(f"[PID {os.getpid()}] Producer {producer_id} finished")
 
     def consumer(self, consumer_id, queue):
-        """Processo consumidor"""
+        """Consumer process"""
         while True:
             item = queue.get()
             if item is None:
@@ -151,7 +151,7 @@ class MultiprocessingQueue:
         print(f"[PID {os.getpid()}] Consumer {consumer_id} finished")
 
     def start_mp_producer_consumer(self, num_producers=2, num_consumers=3, items_per_producer=5):
-        """Sistema produtor-consumidor com multiprocessing"""
+        """Multiprocessing producer-consumer system"""
         processes = []
 
         for i in range(num_consumers):
@@ -176,14 +176,14 @@ class MultiprocessingQueue:
         print("All multiprocessing producer-consumer processes finished")
 
     def cpu_worker(self, input_queue, output_queue, worker_id):
-        """Worker para tarefas CPU-intensive"""
+        """CPU-intensive task worker"""
         while True:
             try:
                 task = input_queue.get(timeout=1)
                 if task is None:
                     break
                 
-                ## Simulação de Processamento CPU-Bound
+                # Simulate CPU-bound processing
                 result = sum(i*i for i in range(task))
                 output_queue.put((worker_id, task, result))
                 print(f"[PID {os.getpid()}] Worker {worker_id} processed task {task}")
@@ -194,7 +194,7 @@ class MultiprocessingQueue:
         print(f"[PID {os.getpid()}] CPU Worker {worker_id} finished")
 
     def start_cpu_intensive_workflow(self, num_workers=None, tasks=None):
-        """Sistema para tarefas CPU-intensive"""
+        """System for CPU-intensive tasks"""
         if num_workers is None:
             num_workers = self.max_processes
         if tasks is None:
@@ -227,7 +227,7 @@ class MultiprocessingQueue:
         return results
 
 if __name__ == "__main__":
-    """ Verificar se o Sistema Operativo é Windows """
+    """Check if the Operating System is Windows"""
     IsWinOS()
 
     """ Threading Queue Example """

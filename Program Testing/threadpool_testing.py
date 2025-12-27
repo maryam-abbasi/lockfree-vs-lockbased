@@ -11,7 +11,7 @@ class ThreadPoolExample:
         self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
 
     def simple_task(self, task_id, duration):
-        """Tarefa simples para demonstração"""
+        """Simple task for demonstration"""
         print(f"[{threading.current_thread().name}] Task {task_id} started, sleeping {duration}s")
         time.sleep(duration)
         result = f"Task {task_id} completed after {duration}s"
@@ -19,7 +19,7 @@ class ThreadPoolExample:
         return result
 
     def run_simple_tasks(self, num_tasks=8):
-        """Executa múltiplas tarefas simples"""
+        """Executes multiple simple tasks"""
         print(f"Running {num_tasks} tasks with {self.max_workers} workers...")
         
         futures = []
@@ -40,19 +40,19 @@ class ThreadPoolExample:
         return results
 
     def cpu_bound_task(self, number):
-        """Tarefa que simula processamento CPU (não ideal para threading)"""
+        """CPU-bound task (not ideal for threading)"""
         return sum(i * i for i in range(number))
 
     def io_bound_task(self, task_id):
-        """Tarefa que simula I/O (ideal para threading)"""
+        """I/O-bound task (ideal for threading)"""
         print(f"[{threading.current_thread().name}] IO Task {task_id} started")
-        time.sleep(random.uniform(0.5, 1.5)) ## Simuação Input/Output (I/O)
+        time.sleep(random.uniform(0.5, 1.5))  # Simulating Input/Output (I/O)
         result = f"IO Task {task_id} completed"
         print(f"[{threading.current_thread().name}] {result}")
         return result
 
     def run_io_bound_tasks(self, num_tasks=10):
-        """Executa tarefas I/O bound"""
+        """Executes I/O-bound tasks"""
         print(f"Running {num_tasks} I/O bound tasks...")
         
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
@@ -65,7 +65,7 @@ class ThreadPoolExample:
         return results
 
     def process_with_timeout(self, task_id, duration, timeout=1.0):
-        """Tarefa com timeout"""
+        """Task with timeout"""
         try:
             future = self.executor.submit(self.simple_task, task_id, duration)
             result = future.result(timeout=timeout)
@@ -74,10 +74,10 @@ class ThreadPoolExample:
             return f"TIMEOUT: Task {task_id} exceeded {timeout}s"
 
     def run_tasks_with_timeouts(self):
-        """Executa tarefas com timeouts"""
+        """Executes tasks with timeouts"""
         tasks = [
-            ## Formato do Objeto:
-            ## task_id, duration, timeout
+            # Format of the object:
+            # task_id, duration, timeout
             (1, 0.5, 1.0),   
             (2, 1.5, 1.0),
             (3, 0.8, 1.0),
@@ -93,12 +93,12 @@ class ThreadPoolExample:
         return results
 
     def shutdown(self):
-        """Encerra o executor"""
+        """Shuts down the executor"""
         self.executor.shutdown(wait=True)
         print("ThreadPoolExecutor shutdown")
 
 if __name__ == "__main__":
-    """ Verificar se o Sistema Operativo é Windows """
+    """Check if the Operating System is Windows"""
     IsWinOS()
 
     tpe = ThreadPoolExample(max_workers=3)

@@ -5,81 +5,68 @@ import time
 import random
 from utils import IsWinOS
 
-class MultiProcess:
-    def __init__(self):
-        self.process_1 = None
-        self.process_2 = None
-        self.processes = []
-        self.max_processes = cpu_count()
-        print(f"Number of CPUs Available: {self.max_processes}")
+def worker(index):
+    """ Função de worker para tarefas simples """
+    start_time = time.time()
+    print(f"[PID {os.getpid()}] Process {index} Started.")
+    time.sleep(1)  ## Simulating a lighter task
+    end_time = time.time() - start_time
+    print(f"[PID {os.getpid()}] Process {index} Finished, Time Elapsed: {end_time:.2f} seconds")
+    return f"Process {index} result"
 
-    def firstTry(self):
-        print(f"[PID {os.getpid()}] First Try Process Running.")
-        time.sleep(1)
-        return None
+def cpu_intensive_worker(number):
+    """ Worker para tarefas intensivas de CPU (calcula soma dos quadrados) """
+    start_time = time.time()
+    result = sum(i * i for i in range(number))
+    end_time = time.time() - start_time
+    print(f"[PID {os.getpid()}] Calculated sum of squares up to {number}: {result} - Time elapsed: {end_time:.2f} seconds")
+    return result
 
-    def secondTry(self):
-        print(f"[PID {os.getpid()}] Second Try Process Running.")
-        time.sleep(1)
-        return None
+def create_processes(max_processes):
+    """ Cria e executa os processos simples """
+    print(f"Creating {max_processes} Processes (1 per CPU).")
+    start_time = time.time()
+    processes = []
 
-    def createProcesses(self):
-        self.process_1 = Process(target=self.firstTry)
-        self.process_2 = Process(target=self.secondTry)
+    for i in range(max_processes):
+        p = Process(target=worker, args=(i + 1,))
+        processes.append(p)
+        p.start()
 
-        self.process_1.start()
-        self.process_2.start()
+    for p in processes:
+        p.join()
 
-        self.process_1.join()
-        self.process_2.join()
+    end_time = time.time() - start_time
 
-        print("All Processes Finished Successfully.")
+    print(f"All processes have been finished, time elapsed: {end_time:.2f} seconds")
 
-    def worker(self, index):
-        print(f"[PID {os.getpid()}] Process {index} Started.")
-        time.sleep(1)
-        print(f"[PID {os.getpid()}] Process {index} Finished.")
-        return f"Process {index} result"
+def create_cpu_intensive_processes(numbers):
+    """ Cria e executa processos para tarefas intensivas de CPU """
+    print("Creating CPU-intensive processes...")
+    start_time = time.time()
+    processes = []
 
-    def createProcessesBETA(self):
-        print(f"Creating {self.max_processes} Processes (1 per CPU).")
-        for i in range(self.max_processes):
-            p = Process(target=self.worker, args=(i + 1,))
-            self.processes.append(p)
-            p.start()
+    for num in numbers:
+        p = Process(target=cpu_intensive_worker, args=(num,))
+        processes.append(p)
+        p.start()
 
-        for p in self.processes:
-            p.join()
+    for p in processes:
+        p.join()
 
-        print("All Processes Have Been Finished.")
+    end_time = time.time() - start_time
 
-    def cpu_intensive_worker(self, number):
-        """Worker para tarefas intensivas de CPU"""
-        result = sum(i*i for i in range(number))
-        print(f"[PID {os.getpid()}] Calculated sum of squares up to {number}: {result}")
-        return result
-
-    def createCPUIntensiveProcesses(self, numbers):
-        print("Creating CPU-intensive processes...")
-        processes = []
-        
-        for i, num in enumerate(numbers):
-            p = Process(target=self.cpu_intensive_worker, args=(num,))
-            processes.append(p)
-            p.start()
-        
-        for p in processes:
-            p.join()
-        
-        print("CPU-intensive processes finished.")
+    print(f"CPU-intensive processes finished, time elapsed: {end_time:.2f} seconds")
 
 if __name__ == "__main__":
-    """ Verificar se o Sistema Operativo é Windows """
+    """Check if the Operating System is Windows"""
     IsWinOS()
 
-    mp = MultiProcess()
-    print("=== Basic Multiprocessing Example ===")
-    mp.createProcesses()
-    
+    max_processes = cpu_count()
+    print(f"Number of CPUs Available: {max_processes}")
+
+    print("\n=== Basic Multiprocessing Example ===")
+    create_processes(max_processes)
+
     print("\n=== CPU-Bound Processes Example ===")
-    mp.createCPUIntensiveProcesses([1000000, 2000000, 3000000])
+    create_cpu_intensive_processes([1000000, 2000000, 3000000]) 
