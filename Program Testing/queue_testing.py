@@ -22,7 +22,7 @@ class ThreadingQueue:
             item = f"Item-{producer_id}-{i}"
             self.queue.put(item)
             print(f"[{current_thread().name}] Produced: {item}")
-            time.sleep(random.uniform(0.1, 0.5))
+            time.sleep(random.uniform(0.1, 0.3))
         
         print(f"[{current_thread().name}] Producer {producer_id} finished")
 
@@ -33,7 +33,7 @@ class ThreadingQueue:
                 item = self.queue.get(timeout=1)
                 print(f"[{current_thread().name}] Consumed: {item}")
                 self.queue.task_done()
-                time.sleep(random.uniform(0.2, 0.8))
+                time.sleep(random.uniform(0.1, 0.3))
             except Empty:
                 continue
         
@@ -200,6 +200,8 @@ class MultiprocessingQueue:
         if tasks is None:
             tasks = [100000, 200000, 300000, 400000, 500000]
 
+        start_time = time.time()
+
         input_queue = multiprocessing.Queue()
         output_queue = multiprocessing.Queue()
         processes = []
@@ -223,7 +225,9 @@ class MultiprocessingQueue:
         for p in processes:
             p.join()
 
-        print(f"CPU-intensive workflow finished. Results: {results}")
+        end_time = time.time() - start_time
+
+        print(f"CPU-intensive workflow finished. Results: {results} - Time elapsed: {end_time:.2f} seconds")
         return results
 
 if __name__ == "__main__":

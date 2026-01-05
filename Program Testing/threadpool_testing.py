@@ -22,6 +22,8 @@ class ThreadPoolExample:
         """Executes multiple simple tasks"""
         print(f"Running {num_tasks} tasks with {self.max_workers} workers...")
         
+        start_time = time.time()
+
         futures = []
         for i in range(num_tasks):
             duration = random.uniform(0.5, 2.0)
@@ -36,7 +38,9 @@ class ThreadPoolExample:
             except Exception as e:
                 print(f"Task failed: {e}")
 
-        print(f"All tasks completed. Results: {results}")
+        end_time = time.time() - start_time
+
+        print(f"All Simple Tasks Finished. Results: {results} - Time elapsed: {end_time:.2f} seconds")
         return results
 
     def cpu_bound_task(self, number):
@@ -54,6 +58,8 @@ class ThreadPoolExample:
     def run_io_bound_tasks(self, num_tasks=10):
         """Executes I/O-bound tasks"""
         print(f"Running {num_tasks} I/O bound tasks...")
+
+        start_time = time.time()
         
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = [executor.submit(self.io_bound_task, i+1) for i in range(num_tasks)]
@@ -61,6 +67,10 @@ class ThreadPoolExample:
             results = []
             for future in as_completed(futures):
                 results.append(future.result())
+
+        end_time = time.time() - start_time
+
+        print(f"All I/O Bound Tasks Finished. Results: {results} - Time elapsed: {end_time:.2f} seconds")
         
         return results
 
@@ -83,12 +93,18 @@ class ThreadPoolExample:
             (3, 0.8, 1.0),
             (4, 2.0, 1.0),
         ]
+
+        start_time = time.time()
         
         results = []
         for task_id, duration, timeout in tasks:
             result = self.process_with_timeout(task_id, duration, timeout)
             results.append(result)
             print(result)
+
+        end_time = time.time() - start_time
+
+        print(f"All Tasks with Timeouts Finished. Results: {results} - Time elapsed: {end_time:.2f} seconds")
         
         return results
 

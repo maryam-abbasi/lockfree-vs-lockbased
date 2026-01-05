@@ -15,9 +15,8 @@ class MultiThread:
         rand_max = random.randint(1000000, 4000000)
         result = sum(range(1, rand_max))
         print(f"Task {index}: Sum is {result}")
-        print(f"[{current_thread().name}] Worker {index} finished")
         end_time = time.time() - start_time
-        print(f"Time elapsed for Thread {index}: {end_time:.2f} seconds")
+        print(f"[{current_thread().name}] Worker {index} finished - Time elapsed for Thread {index}: {end_time:.2f} seconds")
         return f"Result from worker {index}: {result}"
 
     def createMultipleThreads(self, num_threads=5):
@@ -37,7 +36,7 @@ class MultiThread:
 
         end_all_time = time.time() - start_all_time
         print()
-        print(f"All Multiple Threads Finished Successfully. Elapsed: {end_all_time:.2f} seconds")
+        print(f"All Multiple Threads Finished Successfully - Time elapsed: {end_all_time:.2f} seconds")
         print(50*"=")
         print()
 

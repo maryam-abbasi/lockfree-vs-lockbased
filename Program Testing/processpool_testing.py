@@ -19,6 +19,8 @@ class ProcessPoolExample:
     def run_cpu_intensive_tasks(self, numbers):
         """Executes CPU-intensive tasks"""
         print(f"Running {len(numbers)} CPU-intensive tasks with {self.max_workers} workers...")
+
+        start_time = time.time()
         
         # Moving executor creation outside of the class to avoid pickling issues
         with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
@@ -33,6 +35,9 @@ class ProcessPoolExample:
                     print(f"Completed: {result}")
                 except Exception as e:
                     print(f"Task for {num} failed: {e}")
+
+        end_time = time.time() - start_time
+        print(f"All CPU Intentive Tasks Finished - Time elapsed: {end_time:.2f} seconds")
         
         return results
 
@@ -53,6 +58,8 @@ class ProcessPoolExample:
     def run_mixed_tasks(self, num_tasks=8):
         """Executes mixed tasks"""
         print(f"Running {num_tasks} mixed tasks...")
+
+        start_time = time.time()
         
         # Moving executor creation outside of the class to avoid pickling issues
         with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
@@ -61,6 +68,10 @@ class ProcessPoolExample:
             results = []
             for future in as_completed(futures):
                 results.append(future.result())
+
+        end_time = time.time() - start_time
+
+        print(f"All Mixed Tasks Finished - Time elapsed: {end_time:.2f} seconds")
         
         return results
 
@@ -74,6 +85,8 @@ class ProcessPoolExample:
 
     def run_parallel_search(self, data, target, chunk_size=3):
         """Executes parallel search"""
+
+        start_time = time.time()
         
         chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
         print(f"Searching for '{target}' in {len(chunks)} chunks")
@@ -85,6 +98,10 @@ class ProcessPoolExample:
             results = []
             for future in as_completed(futures):
                 results.append(future.result())
+
+        end_time = time.time() - start_time
+
+        print(f"All Parallel Searches Finished - Time elasped: {end_time:.2f} seconds")
         
         return results
 
