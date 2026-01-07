@@ -99,12 +99,12 @@ class MultiProcessingLogger:
         summary = {
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'total_tests': len(df),
-            'avg_elapsed_time': df['elapsed_time'].mean(),
-            'min_elapsed_time': df['elapsed_time'].min(),
-            'max_elapsed_time': df['elapsed_time'].max(),
-            'std_elapsed_time': df['elapsed_time'].std(),
-            'avg_memory_usage': df['memory_usage_mb'].mean() if 'memory_usage_mb' in df.columns else None,
-            'avg_system_load': df['system_load'].mean(),
+            'avg_elapsed_time': round(df['elapsed_time'].mean(), 4),  # ARREDONDADO 4 casas
+            'min_elapsed_time': round(df['elapsed_time'].min(), 4),   # ARREDONDADO 4 casas
+            'max_elapsed_time': round(df['elapsed_time'].max(), 4),   # ARREDONDADO 4 casas
+            'std_elapsed_time': round(df['elapsed_time'].std(), 4),   # ARREDONDADO 4 casas
+            'avg_memory_usage': round(df['memory_usage_mb'].mean(), 4) if 'memory_usage_mb' in df.columns else None,  # ARREDONDADO
+            'avg_system_load': round(df['system_load'].mean(), 4),    # ARREDONDADO 4 casas
             'cpu_count': cpu_count(),
             'total_threads': df['thread_index'].nunique(),
             'test_run': test_run if test_run else 'all'
@@ -148,9 +148,9 @@ class MultiProcessingLogger:
             if len(run_df) > 0:
                 summary = {
                     'test_run': run,
-                    'avg_elapsed_time': run_df['elapsed_time'].mean(),
-                    'avg_memory_usage': run_df['memory_usage_mb'].mean() if 'memory_usage_mb' in run_df.columns else None,
-                    'avg_system_load': run_df['system_load'].mean(),
+                    'avg_elapsed_time': round(run_df['elapsed_time'].mean(), 4),  # ARREDONDADO
+                    'avg_memory_usage': round(run_df['memory_usage_mb'].mean(), 4) if 'memory_usage_mb' in run_df.columns else None,  # ARREDONDADO
+                    'avg_system_load': round(run_df['system_load'].mean(), 4),  # ARREDONDADO
                     'total_threads': run_df['thread_index'].nunique()
                 }
                 run_summaries.append(summary)
@@ -161,13 +161,13 @@ class MultiProcessingLogger:
             final_summary = {
                 'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 'total_test_runs': len(test_runs),
-                'final_avg_elapsed_time': df_runs['avg_elapsed_time'].mean(),
-                'final_min_elapsed_time': df_runs['avg_elapsed_time'].min(),
-                'final_max_elapsed_time': df_runs['avg_elapsed_time'].max(),
-                'final_std_elapsed_time': df_runs['avg_elapsed_time'].std(),
-                'final_avg_memory_usage': df_runs['avg_memory_usage'].mean() if 'avg_memory_usage' in df_runs.columns else None,
-                'final_avg_system_load': df_runs['avg_system_load'].mean(),
-                'avg_threads_per_run': df_runs['total_threads'].mean()
+                'final_avg_elapsed_time': round(df_runs['avg_elapsed_time'].mean(), 4),  # ARREDONDADO
+                'final_min_elapsed_time': round(df_runs['avg_elapsed_time'].min(), 4),   # ARREDONDADO
+                'final_max_elapsed_time': round(df_runs['avg_elapsed_time'].max(), 4),   # ARREDONDADO
+                'final_std_elapsed_time': round(df_runs['avg_elapsed_time'].std(), 4),   # ARREDONDADO
+                'final_avg_memory_usage': round(df_runs['avg_memory_usage'].mean(), 4) if 'avg_memory_usage' in df_runs.columns else None,  # ARREDONDADO
+                'final_avg_system_load': round(df_runs['avg_system_load'].mean(), 4),  # ARREDONDADO
+                'avg_threads_per_run': round(df_runs['total_threads'].mean(), 4)  # ARREDONDADO
             }
             
             # Salvar summary final
@@ -296,7 +296,14 @@ def read_csv_safe(file_path):
     """Lê um arquivo CSV de forma segura, lidando com possíveis inconsistências"""
     try:
         # Primeiro tentar ler normalmente
-        return pd.read_csv(file_path)
+        df = pd.read_csv(file_path)
+        
+        # Arredondar colunas numéricas para 4 casas decimais
+        for col in df.select_dtypes(include=[np.number]).columns:
+            if col not in ['test_run', 'thread_index', 'cpu_count', 'rand_max', 'result', 'calculation_size']:
+                df[col] = df[col].round(4)
+        
+        return df
     except pd.errors.ParserError as e:
         print(f"Warning: Parser error reading {file_path}: {e}")
         print("Trying to read with error handling...")
@@ -305,6 +312,12 @@ def read_csv_safe(file_path):
         try:
             df = pd.read_csv(file_path, on_bad_lines='skip')
             print(f"Successfully read {len(df)} rows (some rows may have been skipped)")
+            
+            # Arredondar colunas numéricas para 4 casas decimais
+            for col in df.select_dtypes(include=[np.number]).columns:
+                if col not in ['test_run', 'thread_index', 'cpu_count', 'rand_max', 'result', 'calculation_size']:
+                    df[col] = df[col].round(4)
+            
             return df
         except Exception as e2:
             print(f"Error reading with skip: {e2}")
@@ -334,6 +347,12 @@ def read_csv_safe(file_path):
                     
                     df = pd.read_csv(temp_file)
                     os.remove(temp_file)
+                    
+                    # Arredondar colunas numéricas para 4 casas decimais
+                    for col in df.select_dtypes(include=[np.number]).columns:
+                        if col not in ['test_run', 'thread_index', 'cpu_count', 'rand_max', 'result', 'calculation_size']:
+                            df[col] = df[col].round(4)
+                    
                     return df
             except Exception as e3:
                 print(f"Failed to read CSV file: {e3}")
@@ -373,19 +392,34 @@ def create_processing_plots_multiple_runs():
     # Criar figura com 2 linhas e 3 colunas (6 gráficos)
     plt.figure(figsize=(18, 12))
     
+    # Configurar formatação de 2 casas decimais para todos os eixos
+    def format_two_decimals(x, pos):
+        return f'{x:.2f}'
+    
     # 1. Gráfico: Average Time per Process Index - SOLICITADO
     plt.subplot(2, 3, 1)
     if 'thread_index' in df.columns and 'elapsed_time' in df.columns and 'test_run' in df.columns:
         try:
             # Calcular médias por thread_index e test_run
             avg_times = df.groupby(['test_run', 'thread_index'])['elapsed_time'].mean().unstack()
-            avg_times.plot(kind='bar', ax=plt.gca())
+            bars = avg_times.plot(kind='bar', ax=plt.gca())
             plt.title('Average Time per Process Index\n(Grouped by Test Run)')
             plt.xlabel('Test Run')
             plt.ylabel('Average Time (seconds)')
             plt.legend(title='Process Index', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
             plt.xticks(rotation=45)
             plt.grid(True, alpha=0.3, linestyle='--')
+            
+            # Formatar eixo Y para 2 casas decimais
+            plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(format_two_decimals))
+            
+            # Adicionar valores formatados nas barras (2 casas decimais)
+            for container in bars.containers:
+                for bar in container:
+                    height = bar.get_height()
+                    if not np.isnan(height):
+                        plt.text(bar.get_x() + bar.get_width()/2., height,
+                                f'{height:.2f}', ha='center', va='bottom', fontsize=8)
         except Exception as e:
             print(f"Error creating plot 1: {e}")
             plt.text(0.5, 0.5, 'Error creating plot', ha='center', va='center')
@@ -401,7 +435,10 @@ def create_processing_plots_multiple_runs():
             plt.ylabel('Average Time (seconds)')
             plt.grid(True, alpha=0.3, linestyle='--')
             
-            # Adicionar valores nos pontos
+            # Formatar eixo Y para 2 casas decimais
+            plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(format_two_decimals))
+            
+            # Adicionar valores nos pontos (2 casas decimais)
             for x, y in zip(avg_by_run.index, avg_by_run.values):
                 plt.text(x, y, f'{y:.2f}', ha='center', va='bottom', fontsize=9)
         except Exception as e:
@@ -423,7 +460,10 @@ def create_processing_plots_multiple_runs():
                 plt.ylabel('Frequency')
                 plt.grid(True, alpha=0.3, linestyle='--', axis='y')
                 
-                # Adicionar estatísticas
+                # Formatar eixo X para 2 casas decimais
+                plt.gca().xaxis.set_major_formatter(plt.FuncFormatter(format_two_decimals))
+                
+                # Adicionar estatísticas (2 casas decimais)
                 mean_mem = memory_data.mean()
                 median_mem = memory_data.median()
                 plt.axvline(mean_mem, color='red', linestyle='--', linewidth=1, label=f'Mean: {mean_mem:.2f} MB')
@@ -451,7 +491,10 @@ def create_processing_plots_multiple_runs():
             plt.xticks(rotation=45)
             plt.grid(True, alpha=0.3, linestyle='--', axis='y')
             
-            # Adicionar valores nas barras
+            # Formatar eixo Y para 1 casa decimal (porcentagem)
+            plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{x:.1f}'))
+            
+            # Adicionar valores nas barras (1 casa decimal para porcentagem)
             for bar in bars:
                 height = bar.get_height()
                 plt.text(bar.get_x() + bar.get_width()/2., height,
@@ -475,7 +518,10 @@ def create_processing_plots_multiple_runs():
             plt.xticks(rotation=45)
             plt.grid(True, alpha=0.3, linestyle='--', axis='y')
             
-            # Adicionar valores nas barras
+            # Formatar eixo Y para inteiros (não precisa de casas decimais)
+            plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'{int(x)}'))
+            
+            # Adicionar valores nas barras (inteiros)
             for bar in bars:
                 height = bar.get_height()
                 plt.text(bar.get_x() + bar.get_width()/2., height,
@@ -500,7 +546,10 @@ def create_processing_plots_multiple_runs():
             plt.ylabel('Total Time (seconds)')
             plt.grid(True, alpha=0.3, linestyle='--')
             
-            # Adicionar valores nos pontos
+            # Formatar eixo Y para 2 casas decimais
+            plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(format_two_decimals))
+            
+            # Adicionar valores nos pontos (2 casas decimais)
             for x, y in zip(total_time_by_run.index, total_time_by_run.values):
                 plt.text(x, y, f'{y:.2f}', ha='center', va='bottom', fontsize=9)
         except Exception as e:
@@ -599,7 +648,7 @@ def main():
             # Criar MultiProcess sem logger (evita problemas de serialização)
             mp = MultiProcess(test_run=test_run)
             total_time = mp.createMultipleProcesses(count)
-            run_times.append(total_time)
+            run_times.append(round(total_time, 4))  # ARREDONDADO 4 casas
             
             # Calcular summary para esta execução - MESMO (após processos terminarem)
             # Carregar dados do CSV para calcular summary
@@ -614,12 +663,12 @@ def main():
                         summary = {
                             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             'total_tests': len(run_df),
-                            'avg_elapsed_time': run_df['elapsed_time'].mean(),
-                            'min_elapsed_time': run_df['elapsed_time'].min(),
-                            'max_elapsed_time': run_df['elapsed_time'].max(),
-                            'std_elapsed_time': run_df['elapsed_time'].std(),
-                            'avg_memory_usage': run_df['memory_usage_mb'].mean() if 'memory_usage_mb' in run_df.columns else None,
-                            'avg_system_load': run_df['system_load'].mean(),
+                            'avg_elapsed_time': round(run_df['elapsed_time'].mean(), 4),  # ARREDONDADO
+                            'min_elapsed_time': round(run_df['elapsed_time'].min(), 4),   # ARREDONDADO
+                            'max_elapsed_time': round(run_df['elapsed_time'].max(), 4),   # ARREDONDADO
+                            'std_elapsed_time': round(run_df['elapsed_time'].std(), 4),   # ARREDONDADO
+                            'avg_memory_usage': round(run_df['memory_usage_mb'].mean(), 4) if 'memory_usage_mb' in run_df.columns else None,  # ARREDONDADO
+                            'avg_system_load': round(run_df['system_load'].mean(), 4),    # ARREDONDADO
                             'cpu_count': cpu_count(),
                             'total_threads': run_df['thread_index'].nunique(),
                             'test_run': test_run
@@ -640,7 +689,7 @@ def main():
         
         print(f"\nTest Run {test_run} Results:")
         for i, count in enumerate(process_counts):
-            print(f"  {count} processes: {run_times[i]:.2f} seconds")
+            print(f"  {count} processes: {run_times[i]:.4f} seconds")  # 4 casas decimais
     
     # Calcular summary final com médias das 5 execuções - MESMO
     print(f"\n{'#'*60}")
@@ -678,9 +727,9 @@ def main():
             max_time = np.max(times_array[:, i])
             
             print(f"\n{count} processes:")
-            print(f"  Average: {avg_time:.2f} ± {std_time:.2f} seconds")
-            print(f"  Range: {min_time:.2f} - {max_time:.2f} seconds")
-            print(f"  Variation: {((max_time-min_time)/avg_time*100):.1f}%")
+            print(f"  Average: {avg_time:.4f} ± {std_time:.4f} seconds")  # 4 casas
+            print(f"  Range: {min_time:.4f} - {max_time:.4f} seconds")    # 4 casas
+            print(f"  Variation: {((max_time-min_time)/avg_time*100):.2f}%")  # 2 casas para porcentagem
     
     print(f"\n{'='*60}")
     print("EXPERIMENT COMPLETED SUCCESSFULLY")
