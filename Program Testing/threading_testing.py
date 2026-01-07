@@ -26,7 +26,6 @@ class MultiThreadLogger:
         os.makedirs("data", exist_ok=True)
         os.makedirs("plots", exist_ok=True)
         
-        # Definir os fieldnames padrão incluindo test_run
         self.fieldnames = [
             'timestamp', 'thread_name', 'thread_index', 'start_time', 
             'end_time', 'elapsed_time', 'memory_usage_mb', 'cpu_count',
@@ -72,7 +71,6 @@ class MultiThreadLogger:
         
         self.results.append(result)
         
-        # Escrever no CSV (thread-safe)
         self.write_result_to_csv(result)
         
         return result
@@ -82,24 +80,22 @@ class MultiThreadLogger:
         if not self.results:
             return
         
-        # Ler dados do arquivo CSV para garantir dados completos
         try:
+            # Load threading results into a Pandas DataFrame for statistical aggregation
             df = pd.read_csv(self.results_file)
         except:
-            # Se não conseguir ler o CSV, usar dados em memória
             df = pd.DataFrame(self.results)
         
         if df.empty:
             return
         
-        # Se especificar test_run, calcula apenas para essa execução
         if test_run is not None:
             df = df[df['test_run'] == test_run]
         
         if len(df) == 0:
             return
         
-        # Calcular estatísticas para este test_run
+        # Compute performance metrics using vectorized operations in Pandas
         summary = {
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'test_run': test_run,
@@ -115,23 +111,19 @@ class MultiThreadLogger:
             'cpu_count': os.cpu_count()
         }
         
-        # Adicionar ao summary_data
         self.summary_data.append(summary)
         
-        # Salvar/atualizar o arquivo de summary
-        self.save_summary_to_csv()
+        # Append current summary snippet to CSV, maintaining potential visual separators
+        df_single = pd.DataFrame([summary])
+        file_exists = os.path.isfile(self.summary_file) and os.path.getsize(self.summary_file) > 0
+        df_single.to_csv(self.summary_file, mode='a', index=False, header=not file_exists)
         
         return summary
     
+    # Method deprecated - logic moved to calculate_summary for safer appending
     def save_summary_to_csv(self):
         """Salva todos os summaries no arquivo CSV"""
-        if not self.summary_data:
-            return
-        
-        df_summary = pd.DataFrame(self.summary_data)
-        
-        # Salvar no arquivo CSV (sobrescrever)
-        df_summary.to_csv(self.summary_file, index=False)
+        pass
 
 class MultiThread:
     def __init__(self, logger, test_run=1):
@@ -199,39 +191,30 @@ class MultiThread:
 def read_csv_safe(file_path):
     """Lê um arquivo CSV de forma segura, lidando com possíveis inconsistências"""
     try:
-        # Primeiro tentar ler normalmente
+        # Load measurement data with Pandas, ensuring robust handling of potential CSV corruptions
         return pd.read_csv(file_path)
     except pd.errors.ParserError as e:
         print(f"Warning: Parser error reading {file_path}: {e}")
-        print("Trying to read with error handling...")
         
-        # Tentar ler ignorando linhas problemáticas
         try:
+            # Attempt to salvage data by skipping malformed lines during parsing
             df = pd.read_csv(file_path, on_bad_lines='skip')
             print(f"Successfully read {len(df)} rows (some rows may have been skipped)")
             return df
         except Exception as e2:
             print(f"Error reading with skip: {e2}")
             
-            # Última tentativa: ler manualmente
             try:
+                # Fallback to manual line filtering if automated skipping fails
                 with open(file_path, 'r') as f:
                     lines = f.readlines()
                 
                 if len(lines) > 0:
-                    # Tentar determinar o número correto de colunas da primeira linha
                     header = lines[0].strip().split(',')
                     num_columns = len(header)
                     
-                    # Filtrar linhas com o número correto de colunas
-                    valid_lines = []
-                    for i, line in enumerate(lines):
-                        if len(line.strip().split(',')) == num_columns:
-                            valid_lines.append(line)
-                        else:
-                            print(f"Skipping line {i+1}: incorrect number of columns")
+                    valid_lines = [line for line in lines if len(line.strip().split(',')) == num_columns]
                     
-                    # Salvar temporariamente e ler
                     temp_file = "temp_fixed.csv"
                     with open(temp_file, 'w') as f:
                         f.writelines(valid_lines)
@@ -250,204 +233,123 @@ def read_csv_safe(file_path):
         return pd.DataFrame()
 
 def create_threading_plots_multiple_runs():
-    """Create visualization plots from CSV data - APENAS OS 6 GRÁFICOS SOLICITADOS"""
+    """Create a standardized 2x3 visualization grid for thread performance analysis"""
     results_file = "data/threading_results.csv"
     summary_file = "data/threading_summary.csv"
     
     if not os.path.exists(results_file):
-        print(f"Arquivo {results_file} não encontrado!")
+        print(f"Error: {results_file} not found!")
         return
     
-    # Usar função segura para ler o CSV
     df = read_csv_safe(results_file)
-    
     if df.empty:
-        print("No data to plot!")
+        print("No data available for plotting.")
         return
-    
-    # Verificar se temos dados de múltiplas execuções
+
     if 'test_run' not in df.columns:
-        print("Warning: 'test_run' column not found in data. Creating default values...")
-        # Criar test_run padrão se não existir
         df['test_run'] = 1
-    
-    # Garantir que test_run seja numérico
     df['test_run'] = pd.to_numeric(df['test_run'], errors='coerce')
     
-    # Criar figura com 2x3 grid (6 gráficos)
     plt.figure(figsize=(18, 12))
     
-    # 1. Gráfico: Average Time per Thread Index
+    # 1. Average Time per Thread Index
     plt.subplot(2, 3, 1)
-    if 'thread_index' in df.columns and 'elapsed_time' in df.columns and 'test_run' in df.columns:
+    if 'thread_index' in df.columns and 'elapsed_time' in df.columns:
         try:
-            # Calcular médias por thread_index e test_run
             avg_times = df.groupby(['test_run', 'thread_index'])['elapsed_time'].mean().unstack()
-            avg_times.plot(kind='bar', ax=plt.gca())
+            bars = avg_times.plot(kind='bar', ax=plt.gca(), edgecolor='black', alpha=0.8)
             plt.title('Average Time per Thread Index', fontsize=12, fontweight='bold')
-            plt.xlabel('Test Run', fontsize=10)
-            plt.ylabel('Average Time (seconds)', fontsize=10)
-            plt.legend(title='Thread Index', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
-            plt.xticks(rotation=45)
+            plt.ylabel('Time (seconds)')
+            plt.legend(title='Thread Index', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
             plt.grid(True, alpha=0.3, axis='y')
         except Exception as e:
-            print(f"Error creating plot 1: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot\nAverage Time per Thread Index', 
-                    ha='center', va='center', fontsize=10)
-    
-    # 2. Gráfico: Average Execution Time per Test Run
+            print(f"Error Plot 1: {e}")
+
+    # 2. Average Execution Time per Test Run
     plt.subplot(2, 3, 2)
     if 'test_run' in df.columns and 'elapsed_time' in df.columns:
         try:
-            avg_by_run = df.groupby('test_run')['elapsed_time'].mean()
-            avg_by_run.plot(kind='line', marker='o', color='blue', linewidth=2, markersize=8)
+            trends = df.groupby('test_run')['elapsed_time'].mean()
+            plt.plot(trends.index, trends.values, marker='o', color='blue', linewidth=2)
             plt.title('Average Execution Time per Test Run', fontsize=12, fontweight='bold')
-            plt.xlabel('Test Run', fontsize=10)
-            plt.ylabel('Average Time (seconds)', fontsize=10)
+            plt.xlabel('Test Run')
+            plt.ylabel('Time (seconds)')
             plt.grid(True, alpha=0.3)
-            
-            # Adicionar valores nos pontos
-            for x, y in zip(avg_by_run.index, avg_by_run.values):
+            for x, y in zip(trends.index, trends.values):
                 plt.text(x, y, f'{y:.2f}s', ha='center', va='bottom', fontsize=9)
         except Exception as e:
-            print(f"Error creating plot 2: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot\nAverage Execution Time per Test Run', 
-                    ha='center', va='center', fontsize=10)
-    
-    # 3. Gráfico: Memory Usage Distribution
+            print(f"Error Plot 2: {e}")
+
+    # 3. Memory Usage Distribution
     plt.subplot(2, 3, 3)
     if 'memory_usage_mb' in df.columns:
         try:
-            # Converter para numérico e remover NaN
-            df['memory_usage_mb'] = pd.to_numeric(df['memory_usage_mb'], errors='coerce')
-            memory_data = df['memory_usage_mb'].dropna()
-            
-            if len(memory_data) > 0:
-                plt.hist(memory_data, bins=20, color='lightgreen', alpha=0.7, edgecolor='black')
-                plt.title('Memory Usage Distribution', fontsize=12, fontweight='bold')
-                plt.xlabel('Memory Usage (MB)', fontsize=10)
-                plt.ylabel('Frequency', fontsize=10)
-                plt.grid(True, alpha=0.3, axis='y')
-                
-                # Adicionar estatísticas
-                mean_mem = memory_data.mean()
-                median_mem = memory_data.median()
-                plt.axvline(mean_mem, color='red', linestyle='--', linewidth=1.5, label=f'Mean: {mean_mem:.1f}MB')
-                plt.axvline(median_mem, color='blue', linestyle='--', linewidth=1.5, label=f'Median: {median_mem:.1f}MB')
-                plt.legend(fontsize=8)
-            else:
-                plt.text(0.5, 0.5, 'No memory usage data', ha='center', va='center', fontsize=10)
+            plt.hist(df['memory_usage_mb'].dropna(), bins=15, color='salmon', alpha=0.7, edgecolor='black')
+            plt.title('Memory Usage Distribution', fontsize=12, fontweight='bold')
+            plt.xlabel('Memory (MB)')
+            plt.ylabel('Frequency')
+            plt.grid(True, alpha=0.3, axis='y')
         except Exception as e:
-            print(f"Error creating plot 3: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot\nMemory Usage Distribution', 
-                    ha='center', va='center', fontsize=10)
-    
-    # 4. Gráfico: Average System Load per Test Run
+            print(f"Error Plot 3: {e}")
+
+    # 4. Average System Load per Test Run
     plt.subplot(2, 3, 4)
     if 'test_run' in df.columns and 'system_load' in df.columns:
         try:
-            # Converter para numérico
-            df['system_load'] = pd.to_numeric(df['system_load'], errors='coerce')
-            avg_load_by_run = df.groupby('test_run')['system_load'].mean()
-            
-            colors = ['#FF9999' if load > 70 else '#66B2FF' if load > 30 else '#99FF99' 
-                     for load in avg_load_by_run.values]
-            
-            bars = avg_load_by_run.plot(kind='bar', color=colors, alpha=0.7, ax=plt.gca())
+            load_trends = df.groupby('test_run')['system_load'].mean()
+            bars = load_trends.plot(kind='bar', color='orange', alpha=0.7, edgecolor='black')
             plt.title('Average System Load per Test Run', fontsize=12, fontweight='bold')
-            plt.xlabel('Test Run', fontsize=10)
-            plt.ylabel('System Load (%)', fontsize=10)
-            plt.xticks(rotation=45)
+            plt.ylabel('System Load (%)')
             plt.grid(True, alpha=0.3, axis='y')
-            
-            # Adicionar valores nas barras
-            for i, (idx, val) in enumerate(zip(avg_load_by_run.index, avg_load_by_run.values)):
-                plt.text(i, val + 1, f'{val:.1f}%', ha='center', va='bottom', fontsize=9)
-            
-            # Adicionar linhas de referência
-            plt.axhline(y=70, color='red', linestyle='--', alpha=0.5, linewidth=1, label='High Load (70%)')
-            plt.axhline(y=30, color='green', linestyle='--', alpha=0.5, linewidth=1, label='Low Load (30%)')
-            plt.legend(fontsize=8)
+            for bar in bars.patches:
+                plt.text(bar.get_x() + bar.get_width()/2, bar.get_height(), 
+                        f'{bar.get_height():.1f}%', ha='center', va='bottom', fontsize=9)
         except Exception as e:
-            print(f"Error creating plot 4: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot\nAverage System Load per Test Run', 
-                    ha='center', va='center', fontsize=10)
-    
-    # 5. Gráfico: Number of Threads per Test Run
+            print(f"Error Plot 4: {e}")
+
+    # 5. Number of Threads per Test Run
     plt.subplot(2, 3, 5)
     if 'test_run' in df.columns and 'thread_index' in df.columns:
         try:
-            threads_per_run = df.groupby('test_run')['thread_index'].nunique()
-            
-            # Criar barras com gradiente de cor
-            colors = plt.cm.Blues(np.linspace(0.4, 0.8, len(threads_per_run)))
-            
-            bars = plt.bar(threads_per_run.index.astype(str), threads_per_run.values, 
-                          color=colors, alpha=0.7, edgecolor='black')
+            thread_counts = df.groupby('test_run')['thread_index'].nunique()
+            bars = thread_counts.plot(kind='bar', color='purple', alpha=0.7, edgecolor='black')
             plt.title('Number of Threads per Test Run', fontsize=12, fontweight='bold')
-            plt.xlabel('Test Run', fontsize=10)
-            plt.ylabel('Number of Threads', fontsize=10)
+            plt.ylabel('Thread Count')
             plt.grid(True, alpha=0.3, axis='y')
-            
-            # Adicionar valores nas barras
-            for bar in bars:
-                height = bar.get_height()
-                plt.text(bar.get_x() + bar.get_width()/2., height + 0.1,
-                        f'{int(height)}', ha='center', va='bottom', fontsize=9)
-            
-            # Linha de média
-            avg_threads = threads_per_run.mean()
-            plt.axhline(y=avg_threads, color='red', linestyle='--', linewidth=1.5, 
-                       label=f'Average: {avg_threads:.1f}')
-            plt.legend(fontsize=8)
+            for bar in bars.patches:
+                plt.text(bar.get_x() + bar.get_width()/2, bar.get_height(), 
+                        f'{int(bar.get_height())}', ha='center', va='bottom', fontsize=9)
         except Exception as e:
-            print(f"Error creating plot 5: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot\nNumber of Threads per Test Run', 
-                    ha='center', va='center', fontsize=10)
-    
-    # 6. Gráfico: Total Execution Time per Test Run
+            print(f"Error Plot 5: {e}")
+
+    # 6. Total Execution Time per Test Run
     plt.subplot(2, 3, 6)
     if 'test_run' in df.columns and 'elapsed_time' in df.columns:
         try:
-            total_time_by_run = df.groupby('test_run')['elapsed_time'].sum()
-            
-            # Criar gráfico de área com gradiente
-            plt.fill_between(total_time_by_run.index, 0, total_time_by_run.values, 
-                           alpha=0.4, color='red')
-            plt.plot(total_time_by_run.index, total_time_by_run.values, 
-                    color='red', linewidth=2, marker='o', markersize=6)
+            total_times = df.groupby('test_run')['elapsed_time'].sum()
+            plt.fill_between(total_times.index, total_times.values, color='red', alpha=0.4)
+            plt.plot(total_times.index, total_times.values, color='red', marker='s', linewidth=2)
             plt.title('Total Execution Time per Test Run', fontsize=12, fontweight='bold')
-            plt.xlabel('Test Run', fontsize=10)
-            plt.ylabel('Total Time (seconds)', fontsize=10)
+            plt.ylabel('Total Time (seconds)')
             plt.grid(True, alpha=0.3)
-            
-            # Adicionar valores nos pontos
-            for x, y in zip(total_time_by_run.index, total_time_by_run.values):
-                plt.text(x, y, f'{y:.1f}s', ha='center', va='bottom', fontsize=9)
-            
-            # Calcular e mostrar crescimento
-            if len(total_time_by_run) > 1:
-                first = total_time_by_run.iloc[0]
-                last = total_time_by_run.iloc[-1]
-                growth = ((last - first) / first * 100) if first > 0 else 0
-                plt.text(0.02, 0.98, f'Growth: {growth:.1f}%', 
-                        transform=plt.gca().transAxes, fontsize=9,
-                        verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+            for x, y in zip(total_times.index, total_times.values):
+                plt.text(x, y, f'{y:.2f}s', ha='center', va='bottom', fontsize=9)
         except Exception as e:
-            print(f"Error creating plot 6: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot\nTotal Execution Time per Test Run', 
-                    ha='center', va='center', fontsize=10)
-    
+            print(f"Error Plot 6: {e}")
+
     plt.tight_layout()
-    
-    plot_filename = f"plots/threading_selected_plots.png"
-    plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
-    print(f"✓ Plot saved as: {plot_filename}")
-    
-    # Não mostrar a imagem diretamente
+    plt.savefig("plots/threading_selected_plots.png", dpi=300, bbox_inches='tight')
     plt.close()
     
-    # Mostrar estatísticas do summary
+    if os.path.exists(summary_file):
+        try:
+            df_summary = read_csv_safe(summary_file)
+            if not df_summary.empty:
+                print(f"\nThreading Summary Statistics:")
+                print(df_summary.tail())
+        except Exception as e:
+            print(f"Error reading summary file: {e}")
+    
     if os.path.exists(summary_file):
         try:
             df_summary = read_csv_safe(summary_file)
@@ -458,29 +360,21 @@ def create_threading_plots_multiple_runs():
             print(f"Error reading summary file: {e}")
 
 def cleanup_old_data():
-    """Limpa ou corrige dados antigos se necessário"""
+    """Insere um separador nos dados existentes em vez de limpar"""
     results_file = "data/threading_results.csv"
     summary_file = "data/threading_summary.csv"
     
-    # Limpar ambos os arquivos
     for file_path in [results_file, summary_file]:
-        if os.path.exists(file_path):
+        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
             try:
-                # Criar backup
-                backup_file = f"{file_path}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                import shutil
-                shutil.copy2(file_path, backup_file)
-                print(f"✓ Backup created: {backup_file}")
-                
-                # Limpar arquivo
-                with open(file_path, 'w') as f:
-                    f.write('')  # Arquivo vazio
-                print(f"✓ Cleaned {file_path}")
+                with open(file_path, 'a') as f:
+                    f.write('\n')
+                print(f"✓ Added separator to {file_path}")
             except Exception as e:
-                print(f"Error during cleanup of {file_path}: {e}")
+                print(f"Error appending separator to {file_path}: {e}")
 
 def main():
-    """Função principal"""
+    """Check if the Operating System is Windows"""
     IsWinOS()
     
     # Limpar dados antigos se necessário
@@ -492,11 +386,9 @@ def main():
     print("MULTIPLE TEST RUNS EXPERIMENT - THREADING")
     print("="*60)
     
-    # Configurações de teste
     thread_counts = [4, 8, 16]
     all_total_times = []
     
-    # Executar 5 vezes
     for test_run in range(1, 6):
         print(f"\n{'#'*60}")
         print(f"STARTING TEST RUN {test_run} OF 5")
@@ -513,10 +405,9 @@ def main():
             total_time = mt.createMultipleThreads(count)
             run_times.append(total_time)
             
-            # Calcular summary para esta execução
             logger.calculate_summary(test_run=test_run)
             
-            time.sleep(1)  # Pequena pausa entre configurações
+            time.sleep(1)
         
         all_total_times.append(run_times)
         
@@ -524,16 +415,14 @@ def main():
         for i, count in enumerate(thread_counts):
             print(f"  {count} threads: {run_times[i]:.2f} seconds")
     
-    # Adicionar linha final com médias gerais no summary
     print(f"\n{'#'*60}")
     print("FINALIZING SUMMARY FILE")
     print(f"{'#'*60}")
     
-    # Ler o summary atual
     try:
+        # Load accumulated summary data to compute longitudinal averages
         df_summary = pd.read_csv(logger.summary_file)
         
-        # Calcular médias gerais
         if not df_summary.empty:
             final_summary = {
                 'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -550,11 +439,10 @@ def main():
                 'cpu_count': os.cpu_count()
             }
             
-            # Adicionar ao dataframe
+            # Append global experiment statistics to the final summary report
             df_final = pd.DataFrame([final_summary])
             df_summary = pd.concat([df_summary, df_final], ignore_index=True)
             
-            # Salvar de volta
             df_summary.to_csv(logger.summary_file, index=False)
             
             print(f"\nOverall Average Statistics:")

@@ -129,23 +129,19 @@ class QueueLogger:
             'cpu_count': os.cpu_count()
         }
         
-        # Adicionar ao summary_data
         self.summary_data.append(summary)
         
-        # Salvar/atualizar o arquivo de summary
-        self.save_summary_to_csv()
+        # Append current summary snippet to CSV directly to maintain persistence
+        df_single = pd.DataFrame([summary])
+        file_exists = os.path.isfile(self.summary_file) and os.path.getsize(self.summary_file) > 0
+        df_single.to_csv(self.summary_file, mode='a', index=False, header=not file_exists)
         
         return summary
     
+    # Method deprecated - logic moved to calculate_summary for safer appending
     def save_summary_to_csv(self):
         """Salva todos os summaries no arquivo CSV"""
-        if not self.summary_data:
-            return
-        
-        df_summary = pd.DataFrame(self.summary_data)
-        
-        # Salvar no arquivo CSV (sobrescrever)
-        df_summary.to_csv(self.summary_file, index=False)
+        pass
 
 class ThreadingQueue:
     def __init__(self, max_size=10, logger=None, test_run=1):
@@ -698,212 +694,142 @@ def read_csv_safe(file_path):
         return pd.DataFrame()
 
 def create_queue_plots_multiple_runs():
-    """Create visualization plots from queue CSV data - APENAS OS GRÁFICOS SOLICITADOS"""
+    """Create a standardized 2x3 visualization grid for queue performance analysis"""
     results_file = "data/queue_results.csv"
     summary_file = "data/queue_summary.csv"
     
     if not os.path.exists(results_file):
-        print(f"Arquivo {results_file} não encontrado!")
+        print(f"Error: {results_file} not found!")
         return
     
-    # Usar função segura para ler o CSV
     df = read_csv_safe(results_file)
-    
     if df.empty:
-        print("No data to plot!")
+        print("No data available for plotting.")
         return
-    
-    # Verificar se temos dados de múltiplas execuções
+
     if 'test_run' not in df.columns:
-        print("Warning: 'test_run' column not found in data. Creating default values...")
         df['test_run'] = 1
-    
-    # Garantir que test_run seja numérico
     df['test_run'] = pd.to_numeric(df['test_run'], errors='coerce')
     
-    # Criar figura com layout 2x3 para os 6 gráficos solicitados
     plt.figure(figsize=(18, 12))
     
-    # 1. Gráfico: Average Time per Thread Index - SOLICITADO
+    # 1. Average Time per Component ID
     plt.subplot(2, 3, 1)
-    if 'component_id' in df.columns and 'elapsed_time' in df.columns and 'test_run' in df.columns:
+    if 'component_id' in df.columns and 'elapsed_time' in df.columns:
         try:
-            # Calcular média de tempo por component_id e test_run
             avg_times = df.groupby(['test_run', 'component_id'])['elapsed_time'].mean().unstack()
-            avg_times.plot(kind='bar', ax=plt.gca())
-            plt.title('Average Time per Component ID\n(Grouped by Test Run)')
-            plt.xlabel('Test Run')
-            plt.ylabel('Average Time (seconds)')
+            bars = avg_times.plot(kind='bar', ax=plt.gca(), edgecolor='black', alpha=0.8)
+            plt.title('Average Time per Component ID', fontsize=12, fontweight='bold')
+            plt.ylabel('Time (seconds)')
             plt.legend(title='Component ID', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize='small')
-            plt.xticks(rotation=45)
-            plt.grid(True, alpha=0.3, linestyle='--')
+            plt.grid(True, alpha=0.3, axis='y')
         except Exception as e:
-            print(f"Error creating plot 1: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot', ha='center', va='center')
-    
-    # 2. Gráfico: Average Execution Time per Test Run - SOLICITADO
+            print(f"Error Plot 1: {e}")
+
+    # 2. Average Execution Time per Test Run
     plt.subplot(2, 3, 2)
     if 'test_run' in df.columns and 'elapsed_time' in df.columns:
         try:
-            avg_by_run = df.groupby('test_run')['elapsed_time'].mean()
-            avg_by_run.plot(kind='line', marker='o', color='blue', linewidth=2, markersize=8)
-            plt.title('Average Execution Time per Test Run')
+            trends = df.groupby('test_run')['elapsed_time'].mean()
+            plt.plot(trends.index, trends.values, marker='o', color='blue', linewidth=2)
+            plt.title('Average Execution Time per Test Run', fontsize=12, fontweight='bold')
             plt.xlabel('Test Run')
-            plt.ylabel('Average Time (seconds)')
-            plt.grid(True, alpha=0.3, linestyle='--')
-            
-            # Adicionar valores nos pontos
-            for x, y in zip(avg_by_run.index, avg_by_run.values):
-                plt.text(x, y, f'{y:.2f}', ha='center', va='bottom', fontsize=9)
+            plt.ylabel('Time (seconds)')
+            plt.grid(True, alpha=0.3)
+            for x, y in zip(trends.index, trends.values):
+                plt.text(x, y, f'{y:.2f}s', ha='center', va='bottom', fontsize=9)
         except Exception as e:
-            print(f"Error creating plot 2: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot', ha='center', va='center')
-    
-    # 3. Gráfico: Memory Usage Distribution - SOLICITADO
+            print(f"Error Plot 2: {e}")
+
+    # 3. Memory Usage Distribution
     plt.subplot(2, 3, 3)
     if 'memory_usage_mb' in df.columns:
         try:
-            df['memory_usage_mb'] = pd.to_numeric(df['memory_usage_mb'], errors='coerce')
-            memory_data = df['memory_usage_mb'].dropna()
-            
-            if not memory_data.empty:
-                plt.hist(memory_data, bins=20, color='lightgreen', alpha=0.7, edgecolor='black')
-                plt.title('Memory Usage Distribution\n(All Queue Tests)')
-                plt.xlabel('Memory Usage (MB)')
-                plt.ylabel('Frequency')
-                plt.grid(True, alpha=0.3, linestyle='--', axis='y')
-                
-                # Adicionar estatísticas
-                mean_mem = memory_data.mean()
-                median_mem = memory_data.median()
-                plt.axvline(mean_mem, color='red', linestyle='--', linewidth=1, label=f'Mean: {mean_mem:.2f} MB')
-                plt.axvline(median_mem, color='blue', linestyle='--', linewidth=1, label=f'Median: {median_mem:.2f} MB')
-                plt.legend(fontsize='small')
-            else:
-                plt.text(0.5, 0.5, 'No memory data available', ha='center', va='center')
+            plt.hist(df['memory_usage_mb'].dropna(), bins=15, color='salmon', alpha=0.7, edgecolor='black')
+            plt.title('Memory Usage Distribution', fontsize=12, fontweight='bold')
+            plt.xlabel('Memory (MB)')
+            plt.ylabel('Frequency')
+            plt.grid(True, alpha=0.3, axis='y')
         except Exception as e:
-            print(f"Error creating plot 3: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot', ha='center', va='center')
-    
-    # 4. Gráfico: Average System Load per Test Run - SOLICITADO
+            print(f"Error Plot 3: {e}")
+
+    # 4. Average System Load per Test Run
     plt.subplot(2, 3, 4)
     if 'test_run' in df.columns and 'system_load' in df.columns:
         try:
-            df['system_load'] = pd.to_numeric(df['system_load'], errors='coerce')
-            avg_load_by_run = df.groupby('test_run')['system_load'].mean()
-            
-            bars = plt.bar(avg_load_by_run.index, avg_load_by_run.values, 
-                          color='orange', alpha=0.7, edgecolor='black')
-            plt.title('Average System Load per Test Run')
-            plt.xlabel('Test Run')
+            load_trends = df.groupby('test_run')['system_load'].mean()
+            bars = load_trends.plot(kind='bar', color='orange', alpha=0.7, edgecolor='black')
+            plt.title('Average System Load per Test Run', fontsize=12, fontweight='bold')
             plt.ylabel('System Load (%)')
-            plt.xticks(rotation=45)
-            plt.grid(True, alpha=0.3, linestyle='--', axis='y')
-            
-            # Adicionar valores nas barras
-            for bar in bars:
-                height = bar.get_height()
-                plt.text(bar.get_x() + bar.get_width()/2., height,
-                        f'{height:.1f}%',
-                        ha='center', va='bottom', fontsize=9)
+            plt.grid(True, alpha=0.3, axis='y')
+            for bar in bars.patches:
+                plt.text(bar.get_x() + bar.get_width()/2, bar.get_height(), 
+                        f'{bar.get_height():.1f}%', ha='center', va='bottom', fontsize=9)
         except Exception as e:
-            print(f"Error creating plot 4: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot', ha='center', va='center')
-    
-    # 5. Gráfico: Number of Threads per Test Run - SOLICITADO
-    # Nota: Aqui consideramos "threads" como o total de componentes por test_run
+            print(f"Error Plot 4: {e}")
+
+    # 5. Number of Components per Test Run
     plt.subplot(2, 3, 5)
-    if 'test_run' in df.columns:
+    if 'test_run' in df.columns and 'component_id' in df.columns:
         try:
-            # Contar número de componentes únicos por test_run
-            # Primeiro, criar identificador único para cada componente
-            if 'component_type' in df.columns and 'component_id' in df.columns:
+            # Create a unique identifier for each component if type is available
+            if 'component_type' in df.columns:
                 df['component_unique'] = df['component_type'] + '_' + df['component_id'].astype(str)
-                threads_per_run = df.groupby('test_run')['component_unique'].nunique()
-                
-                bars = plt.bar(threads_per_run.index, threads_per_run.values, 
-                              color='purple', alpha=0.7, edgecolor='black')
-                plt.title('Number of Components per Test Run')
-                plt.xlabel('Test Run')
-                plt.ylabel('Number of Components')
-                plt.xticks(rotation=45)
-                plt.grid(True, alpha=0.3, linestyle='--', axis='y')
-                
-                # Adicionar valores nas barras
-                for bar in bars:
-                    height = bar.get_height()
-                    plt.text(bar.get_x() + bar.get_width()/2., height,
-                            f'{int(height)}',
-                            ha='center', va='bottom', fontsize=9)
+                comp_counts = df.groupby('test_run')['component_unique'].nunique()
             else:
-                plt.text(0.5, 0.5, 'No component data available', ha='center', va='center')
+                comp_counts = df.groupby('test_run')['component_id'].nunique()
+                
+            bars = comp_counts.plot(kind='bar', color='purple', alpha=0.7, edgecolor='black')
+            plt.title('Number of Threads per Test Run', fontsize=12, fontweight='bold')
+            plt.ylabel('Component Count')
+            plt.grid(True, alpha=0.3, axis='y')
+            for bar in bars.patches:
+                plt.text(bar.get_x() + bar.get_width()/2, bar.get_height(), 
+                        f'{int(bar.get_height())}', ha='center', va='bottom', fontsize=9)
         except Exception as e:
-            print(f"Error creating plot 5: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot', ha='center', va='center')
-    
-    # 6. Gráfico: Total Execution Time per Test Run - SOLICITADO
+            print(f"Error Plot 5: {e}")
+
+    # 6. Total Execution Time per Test Run
     plt.subplot(2, 3, 6)
     if 'test_run' in df.columns and 'elapsed_time' in df.columns:
         try:
-            total_time_by_run = df.groupby('test_run')['elapsed_time'].sum()
-            
-            plt.fill_between(total_time_by_run.index, 0, total_time_by_run.values, 
-                            color='red', alpha=0.3)
-            plt.plot(total_time_by_run.index, total_time_by_run.values, 
-                    color='red', linewidth=2, marker='s', markersize=8)
-            plt.title('Total Execution Time per Test Run')
-            plt.xlabel('Test Run')
+            total_times = df.groupby('test_run')['elapsed_time'].sum()
+            plt.fill_between(total_times.index, total_times.values, color='red', alpha=0.4)
+            plt.plot(total_times.index, total_times.values, color='red', marker='s', linewidth=2)
+            plt.title('Total Execution Time per Test Run', fontsize=12, fontweight='bold')
             plt.ylabel('Total Time (seconds)')
-            plt.grid(True, alpha=0.3, linestyle='--')
-            
-            # Adicionar valores nos pontos
-            for x, y in zip(total_time_by_run.index, total_time_by_run.values):
-                plt.text(x, y, f'{y:.2f}', ha='center', va='bottom', fontsize=9)
+            plt.grid(True, alpha=0.3)
+            for x, y in zip(total_times.index, total_times.values):
+                plt.text(x, y, f'{y:.2f}s', ha='center', va='bottom', fontsize=9)
         except Exception as e:
-            print(f"Error creating plot 6: {e}")
-            plt.text(0.5, 0.5, 'Error creating plot', ha='center', va='center')
-    
+            print(f"Error Plot 6: {e}")
+
     plt.tight_layout()
-    
-    plot_filename = f"plots/queue_selected_plots.png"
-    plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
-    print(f"Plot saved as: {plot_filename}")
-    
-    # Não mostrar a imagem diretamente
+    plt.savefig("plots/queue_selected_plots.png", dpi=300, bbox_inches='tight')
     plt.close()
     
-    # Mostrar estatísticas do summary
     if os.path.exists(summary_file):
         try:
             df_summary = read_csv_safe(summary_file)
             if not df_summary.empty:
-                print(f"\nQueue Summary Statistics for all runs:")
-                print(df_summary[['test_run', 'queue_type', 'total_components', 
-                                'avg_elapsed_time', 'avg_system_load']].tail(6))
+                print(f"\nQueue Summary Statistics:")
+                print(df_summary.tail())
         except Exception as e:
             print(f"Error reading summary file: {e}")
 
 def cleanup_old_data():
-    """Limpa dados antigos se necessário"""
+    """Insere um separador nos dados existentes em vez de limpar"""
     results_file = "data/queue_results.csv"
     summary_file = "data/queue_summary.csv"
     
-    # Limpar ambos os arquivos
     for file_path in [results_file, summary_file]:
-        if os.path.exists(file_path):
+        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
             try:
-                # Criar backup
-                backup_file = f"{file_path}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                import shutil
-                shutil.copy2(file_path, backup_file)
-                print(f"Backup created: {backup_file}")
-                
-                # Limpar arquivo
-                with open(file_path, 'w') as f:
-                    f.write('')  # Arquivo vazio
-                print(f"Cleaned {file_path}")
+                with open(file_path, 'a') as f:
+                    f.write('\n')
+                print(f"✓ Added separator to {file_path}")
             except Exception as e:
-                print(f"Error during cleanup of {file_path}: {e}")
+                print(f"Error appending separator to {file_path}: {e}")
 
 def main():
     """Função principal"""
@@ -1030,42 +956,40 @@ def main():
     print("FINALIZING SUMMARY FILE")
     print(f"{'#'*60}")
     
-    # Ler o summary atual
     try:
-        df_summary = pd.read_csv(logger.summary_file)
+        df_summary_existing = pd.read_csv(logger.summary_file)
         
-        # Calcular médias gerais
-        if not df_summary.empty:
-            # Médias por queue_type
-            for qtype in df_summary['queue_type'].unique():
-                if qtype != 'all':
-                    qtype_df = df_summary[df_summary['queue_type'] == qtype]
-                    overall_avg = {
-                        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        'test_run': 'OVERALL_AVERAGE',
-                        'queue_type': qtype,
-                        'total_components': qtype_df['total_components'].sum(),
-                        'producers_count': qtype_df['producers_count'].mean(),
-                        'consumers_count': qtype_df['consumers_count'].mean(),
-                        'workers_count': qtype_df['workers_count'].mean(),
-                        'avg_elapsed_time': qtype_df['avg_elapsed_time'].mean(),
-                        'min_elapsed_time': qtype_df['min_elapsed_time'].min(),
-                        'max_elapsed_time': qtype_df['max_elapsed_time'].max(),
-                        'std_elapsed_time': qtype_df['std_elapsed_time'].mean(),
-                        'avg_memory_usage': qtype_df['avg_memory_usage'].mean() if 'avg_memory_usage' in qtype_df.columns else None,
-                        'avg_system_load': qtype_df['avg_system_load'].mean(),
-                        'total_items_processed': qtype_df['total_items_processed'].sum(),
-                        'avg_queue_size': qtype_df['avg_queue_size'].mean() if 'avg_queue_size' in qtype_df.columns else None,
-                        'cpu_count': os.cpu_count()
-                    }
-                    
-                    df_final = pd.DataFrame([overall_avg])
-                    df_summary = pd.concat([df_summary, df_final], ignore_index=True)
+        if not df_summary_existing.empty:
+            overall_summaries = []
+            for qtype in df_summary_existing['queue_type'].unique():
+                if qtype != 'all' and qtype != 'OVERALL_AVERAGE':
+                    qtype_df = df_summary_existing[(df_summary_existing['queue_type'] == qtype) & (df_summary_existing['test_run'] != 'OVERALL_AVERAGE')]
+                    if not qtype_df.empty:
+                        # Statistical aggregation of longitudinal performance metrics
+                        overall_avg = {
+                            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            'test_run': 'OVERALL_AVERAGE',
+                            'queue_type': qtype,
+                            'total_components': qtype_df['total_components'].sum(),
+                            'producers_count': qtype_df['producers_count'].mean(),
+                            'consumers_count': qtype_df['consumers_count'].mean(),
+                            'workers_count': qtype_df['workers_count'].mean(),
+                            'avg_elapsed_time': qtype_df['avg_elapsed_time'].mean(),
+                            'min_elapsed_time': qtype_df['min_elapsed_time'].min(),
+                            'max_elapsed_time': qtype_df['max_elapsed_time'].max(),
+                            'std_elapsed_time': qtype_df['std_elapsed_time'].mean(),
+                            'avg_memory_usage': qtype_df['avg_memory_usage'].mean() if 'avg_memory_usage' in qtype_df.columns else None,
+                            'avg_system_load': qtype_df['avg_system_load'].mean(),
+                            'total_items_processed': qtype_df['total_items_processed'].sum(),
+                            'avg_queue_size': qtype_df['avg_queue_size'].mean() if 'avg_queue_size' in qtype_df.columns else None,
+                            'cpu_count': os.cpu_count()
+                        }
+                        overall_summaries.append(overall_avg)
             
-            # Salvar de volta
-            df_summary.to_csv(logger.summary_file, index=False)
-            
-            print(f"\nOverall Average Statistics saved to summary file")
+            if overall_summaries:
+                df_final_append = pd.DataFrame(overall_summaries)
+                df_final_append.to_csv(logger.summary_file, mode='a', index=False, header=False)
+                print(f"\nOverall Average Statistics appended to summary file")
     except Exception as e:
         print(f"Error calculating overall averages: {e}")
     
