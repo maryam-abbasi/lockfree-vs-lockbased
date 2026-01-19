@@ -15,6 +15,7 @@ Two main strategies exist:
 
 Understanding their trade-offs is key to designing high-performance concurrent systems.
 
+[!img](MethodologyFinalVersion.drawio.png)
 ---
 
 ##  Step-by-Step Plan
