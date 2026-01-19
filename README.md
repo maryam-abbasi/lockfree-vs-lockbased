@@ -1,60 +1,142 @@
-# Comparing Lock-Based vs Lock-Free Data Structures
+# Comparing Concurrency Models in Python: Threading vs Multiprocessing
 
-##  Project Overview
-This project studies the performance and scalability of **lock-based** and **lock-free** data structures in concurrent environments.  
-The main goal is to determine **which approach is faster and more scalable** under different workloads and access patterns.
-
-##  Research Question
-Are lock-free data structures faster and more scalable than lock-based structures?
-
-##  Background
-Concurrent programs often need to safely share data among multiple threads.  
-Two main strategies exist:
-- **Lock-based structures:** use mutexes or critical sections to protect shared data.
-- **Lock-free structures:** use atomic operations and memory consistency models to avoid locks and reduce contention.
-
-Understanding their trade-offs is key to designing high-performance concurrent systems.
+##  Overview
+This repository presents a systematic and empirical evaluation of concurrency and synchronization models in Python, focusing on threading, multiprocessing, queues, locks, and pool-based executors under both CPU-bound and I/O-bound workloads.
+The study analyzes how Python’s Global Interpreter Lock (GIL), synchronization primitives, and inter-process communication mechanisms impact performance, scalability, correctness, and resource usage across different hardware platforms.
+The project was developed as an academic experimental benchmark and is designed to be reproducible, configurable, and extensible for further research in concurrent systems.
 
 ---
 
-##  Step-by-Step Plan
-
-### **Step 1 – Research (Weeks 1–2)**
-- Learn about locks, mutexes, and lock-free algorithms.
-- Read 2–3 academic papers comparing the two approaches.
-
-### **Step 2 – Lock-Based Implementation (Weeks 3–4)**
-- Implement a **queue** using locks (e.g., `std::mutex` in C++).
-- Run multithreaded enqueue/dequeue operations.
-- Measure throughput and contention.
-
-### **Step 3 – Lock-Free Implementation (Weeks 5–6)**
-- Implement a **lock-free queue** using atomic operations (e.g., CAS).
-- Run the same benchmark as for the lock-based queue.
-
-### **Step 4 – Scalability Testing (Weeks 7–8)**
-- Test both implementations with **2, 4, 8, and 16 threads**.
-- Measure throughput and latency.
-- Plot graphs showing scalability.
-
-### **Step 5 – Different Access Patterns (Weeks 9–10)**
-- Simulate **high**, **low**, and **mixed contention** workloads.
-- Record all results and observations.
-
-### **Step 6 – Write the Paper (Weeks 11–14)**
-- **Introduction:** Explain lock-based vs lock-free design.
-- **Methodology:** Describe your implementations.
-- **Results:** Present throughput and scalability data.
-- **Discussion:** Analyze trade-offs and limitations.
-- **Conclusion:** State when each approach is preferable.
+##  Key Contributions
+- Comparative benchmarking of Threading vs Multiprocessing under controlled workloads
+- Evaluation of Queue-based producer–consumer models (threading and multiprocessing)
+- Analysis of race conditions, locks, semaphores, and condition variables
+- Performance comparison between ThreadPoolExecutor and ProcessPoolExecutor
+- Cross-hardware evaluation on three 16-logical-core machines
+- Unified metric logging with tables (Pandas) and plots (Matplotlib)
 
 ---
 
-##  Technologies and Tools
-- **Language:** python
-- **Concurrency library:** 
-- **Benchmarking:** custom timer or Google Benchmark
-- **Visualization:** Python (Matplotlib) or Excel for plotting graphs
+##  Experimental Platforms
+All experiments were executed on three heterogeneous systems:
+- PAIVA-DESKTOP – AMD Ryzen 7 7700, 32 GB DDR5, Windows 11
+- PAIVA-LAPTOP – AMD Ryzen 7 5800H, 16 GB DDR4, Windows 10
+- FELIPE-LAPTOP – AMD Ryzen 7 5700U, 12 GB DDR4, Windows 11
+
+Each platform provides 16 logical CPU cores, enabling fair scalability comparisons.
 
 ---
 
+##  Workload Characterization
+The benchmark suite includes two main workload categories:
+
+###  CPU-Bound Tasks
+- Large numeric summations and square-root computations
+- Designed to stress the GIL and evaluate true parallelism via multiprocessing
+
+### I/O-Bound Tasks
+- Simulated latency using time.sleep
+- Models real-world I/O scenarios such as network or disk access
+
+---
+
+##  Concurrency Models Evaluated
+- Threading (threading.Thread)
+- Multiprocessing (multiprocessing.Process)
+- ThreadPoolExecutor
+- ProcessPoolExecutor
+- Threading Queue (queue.Queue)
+- Multiprocessing Queue (multiprocessing.Queue)
+- Synchronization primitives:
+  - Lock / RLock
+  - Semaphore
+  - Condition Variables
+ 
+---
+
+##  Metrics Collected
+
+###  Performance Plots
+- Average execution time per thread
+- Average execution time per test run
+- Memory usage distribution
+- Average system load
+- Number of active threads or processes
+- Total execution time
+
+---
+
+###  Summary Tables
+- Total tests / tasks executed
+- Producers, consumers, and workers
+- Queue sizes and processed items
+- Success rate (data integrity)
+- Elapsed time
+- Memory usage
+- System load
+- CPU core count
+
+---
+
+##  Methodology
+![MethodologyFinalVersion.drawio.png](https://github.com/maryam-abbasi/lockfree-vs-lockbased/blob/main/MethodologyFinalVersion.drawio.png)
+
+---
+
+##  Results Summary
+Key findings from the experimental analysis include:
+- Race conditions persist regardless of hardware power, achieving only ~80% success without synchronization
+- Multiprocessing and ProcessPoolExecutor significantly outperform threading in CPU-bound workloads
+- Threading performs competitively in I/O-bound scenarios where the GIL is released
+- Queues with multiprocessing reduce execution time by ~10% compared to threading queues
+- ProcessPoolExecutor offers the best balance between performance and memory stability
+
+---
+
+##  Requirements
+- Python 3.8+
+- numpy
+- pandas
+- matplotlib
+- psutil
+(All dependencies are standard scientific Python libraries.)
+
+---
+
+##  Usage
+Clone the repository and run the main benchmarking script:
+```
+  python main.py
+```
+The workload size, number of workers, and concurrency model can be configured directly in the source files.
+
+---
+
+##  Limitations
+- All evaluated mechanisms remain lock-based at the Python interpreter level
+- True lock-free CPU-bound execution is not achievable due to the Global Interpreter Lock (GIL)
+- Results are specific to shared-memory single-node systems
+
+---
+
+##  Future Work
+- Evaluation of Per-Interpreter GIL (Python 3.12+)
+- Distributed execution with mpi4py or PyPVM
+- Integration of asyncio for cooperative multitasking comparison
+- Hybrid scheduling and adaptive workload models
+
+---
+
+##  Authors
+- Felipe Campelo Sabbado
+
+  Escola Superior de Tecnologia e Gestão – IPSantarém
+
+- Rodrigo Paiva Calado
+
+  Escola Superior de Tecnologia e Gestão – IPSantarém
+
+---
+
+##  Keywords
+Concurrency · Threading · Multiprocessing · GIL · Queue · Locks · ProcessPool · ThreadPool · Benchmarking
