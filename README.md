@@ -22,6 +22,7 @@ All experiments were executed on three heterogeneous systems:
 - PAIVA-DESKTOP – AMD Ryzen 7 7700, 32 GB DDR5, Windows 11
 - PAIVA-LAPTOP – AMD Ryzen 7 5800H, 16 GB DDR4, Windows 10
 - FELIPE-LAPTOP – AMD Ryzen 7 5700U, 12 GB DDR4, Windows 11
+
 Each platform provides 16 logical CPU cores, enabling fair scalability comparisons.
 
 ---
@@ -128,9 +129,11 @@ The workload size, number of workers, and concurrency model can be configured di
 
 ##  Authors
 - Felipe Campelo Sabbado
+
   Escola Superior de Tecnologia e Gestão – IPSantarém
 
 - Rodrigo Paiva Calado
+
   Escola Superior de Tecnologia e Gestão – IPSantarém
 
 ---
