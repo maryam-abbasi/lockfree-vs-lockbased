@@ -1,4 +1,4 @@
-# Comparing Lock-Based vs Lock-Free Data Structures
+# Comparing Concurrency Models in Python: Threading vs Multiprocessing
 
 ##  Project Overview
 This project studies the performance and scalability of **lock-based** and **lock-free** data structures in concurrent environments.  
@@ -15,7 +15,6 @@ Two main strategies exist:
 
 Understanding their trade-offs is key to designing high-performance concurrent systems.
 
-![MethodologyFinalVersion.drawio.png](https://github.com/maryam-abbasi/lockfree-vs-lockbased/blob/main/MethodologyFinalVersion.drawio.png)
 ---
 
 ##  Step-by-Step Plan
@@ -58,4 +57,7 @@ Understanding their trade-offs is key to designing high-performance concurrent s
 - **Visualization:** Python (Matplotlib) or Excel for plotting graphs
 
 ---
+
+###  Methodology
+![MethodologyFinalVersion.drawio.png](https://github.com/maryam-abbasi/lockfree-vs-lockbased/blob/main/MethodologyFinalVersion.drawio.png)
 
