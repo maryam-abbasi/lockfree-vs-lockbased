@@ -15,7 +15,7 @@ Two main strategies exist:
 
 Understanding their trade-offs is key to designing high-performance concurrent systems.
 
-[!img](MethodologyFinalVersion.drawio.png)
+![MethodologyFinalVersion.drawio.png](https://github.com/maryam-abbasi/lockfree-vs-lockbased/blob/main/MethodologyFinalVersion.drawio.png)
 ---
 
 ##  Step-by-Step Plan
